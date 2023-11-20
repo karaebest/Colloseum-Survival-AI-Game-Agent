@@ -7,8 +7,8 @@ from copy import deepcopy
 import time
 
 class Node:
-    def __init__(self, move):
-        self.move = move
+    def __init__(self, pos):
+        self.pos = pos
         self.children = None
     
         
@@ -29,6 +29,18 @@ class StudentAgent(Agent):
             "d": 2,
             "l": 3,
         }
+        # Moves (Up, Right, Down, Left)
+        self.moves = ((-1, 0), (0, 1), (1, 0), (0, -1))
+
+        # Opposite Directions
+        self.opposites = {0: 2, 1: 3, 2: 0, 3: 1}
+        
+        # Move check: {direction taken to get to current pos: [[boundaries to check], [direction allowed to move in from current pos]]}
+        self.check = {-1: [[0,1,2,3],[0,1,2,3]], 0: [[0,1,3],[0,1,3]], 1: [[1,2], [1]], 2: [[1,2,3],[1,2,3]], 3: [[2,3],[3]]}
+        
+        self.my_pos = []
+        self.adv_pos = []
+        self.chess_board = None
 
     def step(self, chess_board, my_pos, adv_pos, max_step):
         """
@@ -45,6 +57,11 @@ class StudentAgent(Agent):
 
         Please check the sample implementation in agents/random_agent.py or agents/human_agent.py for more details.
         """
+        
+        #Update board and positions
+        self.chess_board = chess_board
+        self.my_pos = my_pos
+        self.adv_pos = adv_pos
 
         # Some simple code to help you with timing. Consider checking 
         # time_taken during your search and breaking with the best answer
@@ -57,7 +74,52 @@ class StudentAgent(Agent):
         # dummy return
         return my_pos, self.dir_map["u"]
     
-    def check_endgame(self, chess_board, p0_pos, p1_pos):
+    def check_valid_step(self, board, start_pos, end_pos, adv_pos, barrier_dir):
+        """
+        Check if the step the agent takes is valid (reachable and within max steps).
+
+        Parameters
+        ----------
+        start_pos : tuple
+            The start position of the agent.
+        end_pos : np.ndarray
+            The end position of the agent.
+        barrier_dir : int
+            The direction of the barrier.
+        """
+        # Endpoint already has barrier or is border
+        r, c = end_pos
+        if board[r, c, barrier_dir]:
+            return False
+        if np.array_equal(start_pos, end_pos):
+            return True
+
+        # BFS
+        state_queue = [(start_pos, 0)]
+        visited = {tuple(start_pos)}
+        is_reached = False
+        while state_queue and not is_reached:
+            cur_pos, cur_step = state_queue.pop(0)
+            r, c = cur_pos
+            if cur_step == self.max_step:
+                break
+            for dir, move in enumerate(self.moves):
+                if board[r, c, dir]:
+                    continue
+
+                next_pos = cur_pos + move
+                if np.array_equal(next_pos, adv_pos) or tuple(next_pos) in visited:
+                    continue
+                if np.array_equal(next_pos, end_pos):
+                    is_reached = True
+                    break
+
+                visited.add(tuple(next_pos))
+                state_queue.append((next_pos, cur_step + 1))
+
+        return is_reached
+    
+    def check_endgame(self, board, p0_pos, p1_pos):
         """
         Check if the game ends and compute the current score of the agents.
 
@@ -70,7 +132,7 @@ class StudentAgent(Agent):
         player_2_score : int
             The score of player 2.
         """
-        board_size = len(chess_board)
+        board_size = len(board)
         # Union-Find
         father = dict()
         for r in range(board_size):
@@ -90,7 +152,7 @@ class StudentAgent(Agent):
                 for dir, move in enumerate(
                     self.moves[1:3]
                 ):  # Only check down and right
-                    if chess_board[r, c, dir + 1]:
+                    if board[r, c, dir + 1]:
                         continue
                     pos_a = find((r, c))
                     pos_b = find((r + move[0], c + move[1]))
@@ -108,19 +170,35 @@ class StudentAgent(Agent):
             return False, p0_score, p1_score
         return True, p0_score, p1_score
     
-    def get_moves(self, chess_board, pos, pos_adv, max):
-        moves = []
-        for i in range(4): # no step, place boundary
-            if not chess_board[pos[0]][pos[1]][i]:
-                moves.append([pos,i])    
-        j=0
-        while(j != max):
+    def get_moves(self, board, pos, pos_adv, max, moves, prev_dir):
+        #maybe add check for if im going to box myself in
+        
+        for dir in self.check[prev_dir][0]:
+            if board[pos[0]][pos[1]][dir] == False: #boundaries in current position
+                moves.append([pos[0],pos[1],dir])
+                next_pos = np.array(pos)+np.array(self.moves[dir])
+                if max!=0 and not np.array_equal(pos_adv, next_pos):
+                    moves = self.get_moves(board,next_pos,pos_adv,max-1,moves,dir)
+
+        return moves
+
+            
+        
+            
+                 
+        
+            
+            
+        
             
             
         
     
     def MCT_search(self, chess_board, my_pos):
         t = time.time()
-        while(time.time()-t<1.9): #while i still have time
+        #while(time.time()-t<1.9): #while i still have time
             
+            
+    # def traverse(node):
+    #     while len(node.children)==0:
             
