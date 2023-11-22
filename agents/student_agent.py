@@ -191,9 +191,10 @@ class StudentAgent(Agent):
 
     #     return moves
     
-    def get_children(self, board, pos, pos_adv, max_step, prev_dir, node, visited): 
+    def get_children(self, board, pos, pos_adv, max_step, prev_dir, node, visited={}): 
+        if prev_dir==-1:
+            visited={tuple(pos)}
         #Check all boundaries in current position except direction we came from
-        
         for dir in range(4):
             #Check if possible to set barrier
             if (prev_dir!=-1 and dir==self.opposites[prev_dir]) or board[pos[0]][pos[1]][dir] == True:
@@ -212,7 +213,7 @@ class StudentAgent(Agent):
         return node
     
     def minimax_decision(self, root, board, my_pos, pos_adv):
-        self.get_children(board, my_pos, pos_adv, self.max_step, -1, root,{tuple(my_pos)})
+        self.get_children(board, my_pos, pos_adv, self.max_step, -1, root)
         vals = np.zeros(len(root.children))
         for i,c in enumerate(root.children):
             #Copy board
@@ -245,7 +246,7 @@ class StudentAgent(Agent):
             #Set boundaries in child state
             boardc[node.pos[0]][node.pos[1]][node.boundary]=True
             boardc[node.pos[0]+self.moves[node.boundary][0]][node.pos[1]+self.moves[node.boundary][1]][self.opposites[node.boundary]]=True
-            self.get_children(boardc, pos_adv, pos, self.max_step, -1, node, {tuple(pos_adv)})
+            self.get_children(boardc, pos_adv, pos, self.max_step, -1, node)
         #get utility
         vals=np.zeros(len(node.children))
         for i,n in enumerate(node.children):

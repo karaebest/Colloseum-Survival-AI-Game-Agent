@@ -87,9 +87,10 @@ def check_endgame(board, p0_pos, p1_pos):
         return False, p0_score, p1_score
     return True, p0_score, p1_score
 
-def get_children(board, pos, pos_adv, max_step, prev_dir, node, visited): 
+def get_children(board, pos, pos_adv, max_step, prev_dir, node, visited={}): 
+    if prev_dir==-1:
+        visited = {tuple(pos)}
     #Check all boundaries in current position except direction we came from
-    
     for dir in range(4):
         #Check if possible to set barrier
         if (prev_dir!=-1 and dir==opposites[prev_dir]) or board[pos[0]][pos[1]][dir] == True:
@@ -169,7 +170,7 @@ board = make_board(4, bounds)
 root = Node(p1_pos)
 
 ########### GET CHILDREN TEST################
-root = get_children(board, p0_pos, p1_pos, 2, -1, root, {tuple(p1_pos)})
+root = get_children(board, p0_pos, p1_pos, 2, -1, root)
 
 for c in root.children:
     print("=====")
