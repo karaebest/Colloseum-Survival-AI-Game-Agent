@@ -1,5 +1,6 @@
 import numpy as np
 import time
+import copy
 
 # def check_endgame(board_size, chess_board, moves, p0_pos, p1_pos, player_names):
 #     """
@@ -80,10 +81,10 @@ chess_board[:, 0, 3] = True
 chess_board[-1, :, 2] = True
 chess_board[:, -1, 1] = True
 
-chess_board[0:3, 1, 1] = True
-chess_board[1:3, 2, 1] = True
-chess_board[0, 1:3, 2] = True
-chess_board[1, 1:3, 2] = True
+# chess_board[0:3, 1, 1] = True
+# chess_board[1:3, 2, 1] = True
+# chess_board[0, 1:3, 2] = True
+# chess_board[1, 1:3, 2] = True
 chess_board[2, 1, 2] = True
 
 # t = time.time()
@@ -96,9 +97,11 @@ check = {-1: [[0,1,2,3],[0,1,2,3]], 0: [[0,1,3],[0,1,3]], 1: [[1,2], [1]], 2: [[
 
 
 moves = np.array(((-1, 0), (0, 1), (1, 0), (0, -1)))
+opposites = {0: 2, 1: 3, 2: 0, 3: 1}
 # pos = np.array([0,1])
 # print(pos+moves[0])
 
+        
 def get_moves(board, pos, pos_adv, max, moves1, prev_dir):
     #maybe add check for if im going to box myself in
     
@@ -111,4 +114,5 @@ def get_moves(board, pos, pos_adv, max, moves1, prev_dir):
 
     return moves1
 
-print(get_moves(chess_board, p0_pos, p1_pos, 2, [], -1))
+    
+

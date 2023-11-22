@@ -8,8 +8,12 @@ import time
 
 class Node:
     def __init__(self, pos):
+        #Boundary placed to reach the state represented by this node
         self.pos = pos
-        self.children = None
+        self.boundary = None
+        self.children = []
+        #Tree level of node (even = max node, odd = min node)
+        self.level = 0
     
         
 
@@ -41,6 +45,8 @@ class StudentAgent(Agent):
         self.my_pos = []
         self.adv_pos = []
         self.chess_board = None
+        self.depth = 3
+        self.max_step = 0
 
     def step(self, chess_board, my_pos, adv_pos, max_step):
         """
@@ -62,6 +68,10 @@ class StudentAgent(Agent):
         self.chess_board = chess_board
         self.my_pos = my_pos
         self.adv_pos = adv_pos
+        self.max_step = max_step
+        
+        #Create root node
+        root = Node(my_pos)
 
         # Some simple code to help you with timing. Consider checking 
         # time_taken during your search and breaking with the best answer
@@ -170,17 +180,74 @@ class StudentAgent(Agent):
             return False, p0_score, p1_score
         return True, p0_score, p1_score
     
-    def get_moves(self, board, pos, pos_adv, max, moves, prev_dir):
-        #maybe add check for if im going to box myself in
+    # def get_moves(self, board, pos, pos_adv, max, moves, prev_dir):
         
+    #     for dir in self.check[prev_dir][0]:
+    #         if board[pos[0]][pos[1]][dir] == False: #boundaries in current position
+    #             moves.append([pos[0],pos[1],dir])
+    #             next_pos = np.array(pos)+np.array(self.moves[dir])
+    #             if max!=0 and not np.array_equal(pos_adv, next_pos):
+    #                 moves = self.get_moves(board,next_pos,pos_adv,max-1,moves,dir)
+
+    #     return moves
+    
+    def get_children(self, board, pos, pos_adv, max_step, prev_dir, node):        
         for dir in self.check[prev_dir][0]:
             if board[pos[0]][pos[1]][dir] == False: #boundaries in current position
-                moves.append([pos[0],pos[1],dir])
+                c = Node(pos)
+                c.level=node.level+1
+                c.boundary=dir
+                node.children.append(c)
+                #moves.append([pos[0],pos[1],dir])
                 next_pos = np.array(pos)+np.array(self.moves[dir])
                 if max!=0 and not np.array_equal(pos_adv, next_pos):
-                    moves = self.get_moves(board,next_pos,pos_adv,max-1,moves,dir)
-
-        return moves
+                    self.get_children(board,next_pos,pos_adv,max_step-1,dir,node)
+        return
+    
+    def minimax_decision(self, root, board, my_pos, pos_adv):
+        self.get_children(board, my_pos, pos_adv, self.max_step, -1, root)
+        vals = np.zeros(len(root.children))
+        for i,c in enumerate(root.children):
+            #Copy board
+            boardc = deepcopy(board)
+            #Set boundaries in child state
+            boardc[c.pos[0]][c.pos[1]][c.boundary]==True
+            boardc[c.pos[0]+self.moves[c.boundary][0]][c.pos[1]+self.moves[c.boundary][1]][self.opposites[c.boundary]]==True
+            vals[i] = self.minimax_value(c, self.depth, boardc, my_pos, pos_adv)
+        c_max = root.children[vals.argmax()]
+        step=np.array([c_max.pos[0], c_max.pos[1], c_max.boundary])
+        return step
+    
+    def evaluation(self, node, board):
+        return 0
+    
+    def minimax_value(self, node, board, pos, pos_adv):
+        #check for end of game
+        end, score1, score2 = self.check_endgame(board, pos, pos_adv)
+        if end:
+            if node.level%2!=0:
+                return score1
+            return score2
+        #check if depth has been reached
+        if self.depth==node.level:
+            return self.evaluation(node, board)
+        #get children
+        if len(node.children)==0:
+            #Copy board
+            boardc = deepcopy(board)
+            #Set boundaries in child state
+            boardc[node.pos[0]][node.pos[1]][node.boundary]==True
+            boardc[node.pos[0]+self.moves[node.boundary][0]][node.pos[1]+self.moves[node.boundary][1]][self.opposites[node.boundary]]==True
+            self.get_children(boardc, pos_adv, pos, self.max_step, -1, node)
+        #get utility
+        vals=np.zeros(len(node.children))
+        for i,n in enumerate(node.children):
+            vals[i]=self.minimax_value(n, boardc, pos_adv, pos)
+        if node.level%2==0:
+            return np.max(vals)
+        else:
+            return np.min(vals)
+        
 
             
         
@@ -194,8 +261,8 @@ class StudentAgent(Agent):
             
         
     
-    def MCT_search(self, chess_board, my_pos):
-        t = time.time()
+    # def MCT_search(self, chess_board, my_pos):
+    #     t = time.time()
         #while(time.time()-t<1.9): #while i still have time
             
             
