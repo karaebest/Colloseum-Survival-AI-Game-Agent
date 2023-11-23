@@ -1,7 +1,4 @@
-- name: "Your full name as appears on your transcript"
-  mcgill_id: "Your mcgill id"
-  email: "email@mail.mcgill.ca"
+- name: Kara Best
+  mcgill_id: 260894988
+  email: kara.best@mail.mcgill.ca
 
-- name: "Your full name as appears on your transcript"
-  mcgill_id: "Your mcgill id"
-  email: "email@mail.mcgill.ca"
