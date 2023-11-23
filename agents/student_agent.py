@@ -194,22 +194,23 @@ class StudentAgent(Agent):
     def get_children(self, board, pos, pos_adv, max_step, prev_dir, node, visited={}): 
         if prev_dir==-1:
             visited={tuple(pos)}
-        #Check all boundaries in current position except direction we came from
+        #Check all boundaries in current position
         for dir in range(4):
             #Check if possible to set barrier
-            if (prev_dir!=-1 and dir==self.opposites[prev_dir]) or board[pos[0]][pos[1]][dir] == True:
+            if board[pos[0]][pos[1]][dir]:
                 continue
             #Create child node and add to list of visited positions
             c = Node(pos)
             c.level=node.level+1
             c.boundary=dir
             node.children.append(c)
-            
-            #check if possible to move in that direction
-            next_pos = np.array(pos)+np.array(self.moves[dir])
-            if (not tuple(next_pos) in visited) and max_step!=0 and not np.array_equal(pos_adv, next_pos):
-                visited.add(tuple(next_pos))
-                self.get_children(board, next_pos, pos_adv, max_step-1, dir, node, visited)
+            #Ensure to not move back to previous position
+            if prev_dir==-1 or (prev_dir!= -1 and dir != self.opposites[prev_dir]):
+                #check if possible to move in that direction
+                next_pos = np.array(pos)+np.array(self.moves[dir])
+                if (not tuple(next_pos) in visited) and max_step!=0 and not np.array_equal(pos_adv, next_pos):
+                    visited.add(tuple(next_pos))
+                    self.get_children(board, next_pos, pos_adv, max_step-1, dir, node, visited)
         return node
     
     def minimax_decision(self, root, board, my_pos, pos_adv):
@@ -246,7 +247,7 @@ class StudentAgent(Agent):
             #Set boundaries in child state
             boardc[node.pos[0]][node.pos[1]][node.boundary]=True
             boardc[node.pos[0]+self.moves[node.boundary][0]][node.pos[1]+self.moves[node.boundary][1]][self.opposites[node.boundary]]=True
-            self.get_children(boardc, pos_adv, pos, self.max_step, -1, node)
+            node = self.get_children(boardc, pos_adv, pos, self.max_step, -1, node)
         #get utility
         vals=np.zeros(len(node.children))
         for i,n in enumerate(node.children):
