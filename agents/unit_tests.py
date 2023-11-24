@@ -16,6 +16,7 @@ check = {-1: [[0,1,2,3],[0,1,2,3]], 0: [[0,1,3],[0,1,3]], 1: [[1,2], [1]], 2: [[
 max_step = 2
 depth = 3
 root = None
+t = time.time()
 
 class Node:
     def __init__(self, pos):
@@ -121,15 +122,17 @@ def minimax_decision(root, board, my_pos, pos_adv):
         boardc[c.pos[0]][c.pos[1]][c.boundary]=True
         boardc[c.pos[0]+moves[c.boundary][0]][c.pos[1]+moves[c.boundary][1]][opposites[c.boundary]]=True
         vals[i], win= minimax_value(c, boardc, my_pos, pos_adv)
+        # if time.time()-t>1.89:
+        #     c_max = root.children[vals[0:i+1].argmax()]
+        #     return c_max.pos, c_max.boundary
         # If step results in an immediate win, return step
         if win:
-            return np.array([c.pos[0], c.pos[1], c.boundary])          
+            return c.pos, c.boundary         
     c_max = root.children[vals.argmax()]
-    step=np.array([c_max.pos[0], c_max.pos[1], c_max.boundary])
     
-    return step
+    return c_max.pos, c_max.boundary
 
-def evaluation(node, board, pos, pos_adv, endgame):
+def evaluation(node, board, pos, pos_adv):
     # Get children first, to determine stuff like how many moves they can make
     boardc = deepcopy(board)
     #Set boundaries in child state
@@ -179,17 +182,18 @@ def minimax_value(node, board, pos, pos_adv):
     #check if depth has been reached
     if depth==node.level:
         return evaluation(node, board, pos, pos_adv, False), False
+    
     #get children
     if len(node.children)==0:
-        #Copy board
-        boardc = deepcopy(board)
-        #Set boundaries in child state
-        boardc[node.pos[0]][node.pos[1]][node.boundary]=True
-        boardc[node.pos[0]+moves[node.boundary][0]][node.pos[1]+moves[node.boundary][1]][opposites[node.boundary]]=True
-        get_children(boardc, pos_adv, pos, max_step, -1, node)
+        get_children(board, pos_adv, pos, max_step, -1, node)
+        
     #get utility
     vals=np.zeros(len(node.children))
     for i,n in enumerate(node.children):
+        boardc = deepcopy(board)
+        #Set boundaries in child state
+        boardc[n.pos[0]][n.pos[1]][n.boundary]=True
+        boardc[n.pos[0]+moves[n.boundary][0]][n.pos[1]+moves[n.boundary][1]][opposites[n.boundary]]=True
         vals[i],win=minimax_value(n, boardc, pos_adv, pos)
     if node.level%2==0:
         m = np.max(vals)
@@ -202,14 +206,15 @@ def minimax_value(node, board, pos, pos_adv):
         return np.min(vals), False
 
 ######################## MAKE BOARD###############
-p0_pos = [1,2]
-p1_pos = [2,1]
+p0_pos = [2,2]
+p1_pos = [1,0]
 player_names = ["p0","p1"]
 
-bounds = [[0,1,1],[0,1,2],[0,2,2],[1,1,2],[1,2,2],[2,1,1],[2,1,2],[2,2,1]]
+#bounds = [[0,1,1],[0,1,2],[0,2,2],[1,1,2],[1,2,2],[2,1,1],[2,1,2],[2,2,1]]
+bounds = [[1,0,2],[1,1,2],[1,2,2]]
 board = make_board(4, bounds)
 
-root = Node(p1_pos)
+root = Node(p0_pos)
 
 ########### GET CHILDREN TEST################
 # root = get_children(board, p0_pos, p1_pos, 2, -1, root)
@@ -231,8 +236,10 @@ root = Node(p1_pos)
 
 
 ######### MINIMAX TEST#############
-t = time.time()
-step = minimax_decision(root, board, p0_pos, p1_pos)
-print(step)
-print(time.time()-t)
+
+pos, boundary = minimax_decision(root, board, p0_pos, p1_pos)
+print(pos)
+print(boundary)
+turn = time.time()
+print(turn-t)
 
