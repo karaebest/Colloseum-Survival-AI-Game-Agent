@@ -201,17 +201,6 @@ class StudentAgent(Agent):
             return False, p0_score, p1_score
         return True, p0_score, p1_score
     
-    # def get_moves(self, board, pos, pos_adv, max, moves, prev_dir):
-        
-    #     for dir in self.check[prev_dir][0]:
-    #         if board[pos[0]][pos[1]][dir] == False: #boundaries in current position
-    #             moves.append([pos[0],pos[1],dir])
-    #             next_pos = np.array(pos)+np.array(self.moves[dir])
-    #             if max!=0 and not np.array_equal(pos_adv, next_pos):
-    #                 moves = self.get_moves(board,next_pos,pos_adv,max-1,moves,dir)
-
-    #     return moves
-    
     def get_children(self, board, pos, pos_adv, max_step, prev_dir, node, visited={}): 
         if prev_dir==-1:
             visited={tuple(pos)}
@@ -238,6 +227,8 @@ class StudentAgent(Agent):
         if len(self.root.children)==0:
             self.get_children(board, my_pos, pos_adv, self.max_step, -1, root)
         vals = np.zeros(len(root.children))
+        max_alpha = float('-inf')
+        max_node = None
         for i,c in enumerate(root.children):
             #Copy board
             boardc = deepcopy(board)
@@ -245,16 +236,23 @@ class StudentAgent(Agent):
             boardc[c.pos[0]][c.pos[1]][c.boundary]=True
             boardc[c.pos[0]+self.moves[c.boundary][0]][c.pos[1]+self.moves[c.boundary][1]][self.opposites[c.boundary]]=True
             c.level=1
-            vals[i], win = self.minimax_value(c, boardc, c.pos, pos_adv)
+            vals[i], win= self.minimax_value(c, boardc, c.pos, pos_adv, float('-inf'), float('inf'))
             # If step results in an immediate win, return step
             if win:
                 return c.pos, c.boundary
-        c_max = root.children[vals.argmax()]
+            if vals[i]>max_alpha:
+                max_alpha = vals[i]
+                max_node = c
+        self.root = max_node
+        self.chess_board[max_node.pos[0]][max_node.pos[1]][max_node.boundary]=True
+        self.chess_board[max_node.pos[0]+self.moves[max_node.boundary][0]][max_node.pos[1]+self.moves[max_node.boundary][1]][self.opposites[max_node.boundary]]=True
+        return max_node.pos, max_node.boundary
         #Update root and board
-        self.root = c_max
-        self.chess_board[c_max.pos[0]][c_max.pos[1]][c_max.boundary]=True
-        self.chess_board[c_max.pos[0]+self.moves[c_max.boundary][0]][c_max.pos[1]+self.moves[c_max.boundary][1]][self.opposites[c_max.boundary]]=True
-        return c_max.pos, c_max.boundary
+        # self.root = c_max
+        # self.chess_board[c_max.pos[0]][c_max.pos[1]][c_max.boundary]=True
+        # self.chess_board[c_max.pos[0]+self.moves[c_max.boundary][0]][c_max.pos[1]+self.moves[c_max.boundary][1]][self.opposites[c_max.boundary]]=True
+        # c_max = root.children[vals.argmax()]
+        # return c_max.pos, c_max.boundary
     
     def evaluation(self, node, board, pos, pos_adv):
             # Get children first, to determine stuff like how many moves they can make
@@ -279,30 +277,16 @@ class StudentAgent(Agent):
         
         return score
     
-    def minimax_value(self, node, board, pos, pos_adv):
+    def minimax_value(self, node, board, pos, pos_adv, alpha, beta):
         #check for end of game, if the move leads to a win, immediately return and make that move
-        #### ONLY CHECK ENDGAME FOR NODES THAT HAVEN'T BEEN SAVED BEFORE SO WE ARE NOT RECALCULATING UTILITY FOR THEM
         if node.end is None:
             end, score1, score2 = self.check_endgame(board, pos, pos_adv)
             if end:
                 node.end=True
-                #If next move leads to immediate win, return immediately
-                if node.level==1: 
-                    if score1>score2:
-                        return score1, True
-                    else:
-                        # Ensure score will be lower than any other possible score
-                        return -(len(board)*len(board)), False
-                #If move gives opponent an opening for a win in following turn, return immediately
-                if node.level==2 and score1>score2:
-                    return -(len(board)*len(board)), False
-                if node.level%2!=0:
-                    node.endscore = score1-score2
-                    return node.endscore, False
-                else: 
-                    node.endscore = score2-score1
-                    return node.endscore, False
-        elif node.end:
+                node.endscore = score1-score2 if node.level%2!=0 else score2-score1
+            else:
+                node.end = False
+        if node.end:
             if node.level==1: 
                 if node.endscore>0:
                     return node.endscore, True
@@ -314,17 +298,15 @@ class StudentAgent(Agent):
                 return -(len(board)*len(board)), False
             return node.endscore, False
 
-            
-
-        #check if depth has been reached
+        #utility computed using evaluation function if depth reached
         if self.depth==node.level:
             return self.evaluation(node, board, pos, pos_adv), False
         
         #get children
         if len(node.children)==0:
-            assert(not np.array_equal(pos_adv, node.pos))
             self.get_children(board, pos_adv, node.pos, self.max_step, -1, node)
-        #get utility
+        
+        #get utility NEED TO ADD ALPHA BETA STUFF HERE AND FIX THE THING THAT REMEMBERS MOVES
         vals=np.zeros(len(node.children))
         for i,n in enumerate(node.children):
             n.level = node.level+1
@@ -332,7 +314,7 @@ class StudentAgent(Agent):
             #Set boundaries in child state
             boardc[n.pos[0]][n.pos[1]][n.boundary]=True
             boardc[n.pos[0]+self.moves[n.boundary][0]][n.pos[1]+self.moves[n.boundary][1]][self.opposites[n.boundary]]=True
-            vals[i], win =self.minimax_value(n, boardc, n.pos, node.pos)
+            vals[i], win, alpha, beta = self.minimax_value(n, boardc, n.pos, node.pos)
         if node.level%2==0:
             return np.max(vals), False
         else:
