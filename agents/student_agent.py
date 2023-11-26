@@ -96,6 +96,9 @@ class StudentAgent(Agent):
                     self.root.level=0
                     self.root.boundary=None
                     break
+            if not flag:
+                print("WEEEEOOOOOOOOOOO+++++++++++")
+                self.root = self.Node(my_pos)
         else:
             self.root = self.Node(my_pos)
                     
@@ -225,7 +228,6 @@ class StudentAgent(Agent):
             c.boundary=dir
             node.children.append(c)
                 
-            
             #Ensure to not move back to previous position
             if prev_dir==-1 or (prev_dir!= -1 and dir != self.opposites[prev_dir]):
                 #check if possible to move in that direction
@@ -252,10 +254,14 @@ class StudentAgent(Agent):
             # If step results in an immediate win, return step
             if win:
                 return c.pos, c.boundary
-            
             if val>alpha:
                 alpha = val
                 max_node = c
+            if time.time()-self.timer>1.9:
+                self.chess_board[max_node.pos[0]][max_node.pos[1]][max_node.boundary]=True
+                self.chess_board[max_node.pos[0]+self.moves[max_node.boundary][0]][max_node.pos[1]+self.moves[max_node.boundary][1]][self.opposites[max_node.boundary]]=True
+                self.root = max_node
+                return max_node.pos, max_node.boundary
                 
             
            
@@ -272,26 +278,14 @@ class StudentAgent(Agent):
         boardc[node.pos[0]][node.pos[1]][node.boundary]=True
         boardc[node.pos[0]+self.moves[node.boundary][0]][node.pos[1]+self.moves[node.boundary][1]][self.opposites[node.boundary]]=True
         
-        # #Feature 1: Number of moves I can make from this position (regardless of move opponent makes)
-        # nodec = deepcopy(node)
-        # self.get_children(boardc, pos, pos_adv, self.max_step, -1, nodec)
-        # feat1 = len(nodec.children)
-        #Feature 2: Number of moves opponent can make
+        # #Feature 1: Number of moves I can make from this position
         self.get_children(boardc, pos_adv, pos, self.max_step, -1, node)
         return len(node.children)
-        
-        #Normalize by something so the winning score doesn't overpower this
 
-        #Feature 2: Zone expansion
-            # count reachable spaces
-        # score = feat2
-        
-        # return score
     
     def minimax_value(self, node, board, pos, pos_adv, alpha, beta):
-        
         #check for end of game, if the move leads to a win, immediately return and make that move
-        if node.end is None and self.turn!=1:
+        if node.end is None and self.turn!=1 and not(self.board_size>10 and self.turn<20):
             end, score1, score2 = self.check_endgame(board, pos, pos_adv)
             if end:
                 node.end=True
@@ -317,7 +311,7 @@ class StudentAgent(Agent):
         if len(node.children)==0:
             self.get_children(board, pos_adv, node.pos, self.max_step, -1, node)
         
-        #get utility NEED TO ADD ALPHA BETA STUFF HERE AND FIX THE THING THAT REMEMBERS MOVES
+        #get utility 
         for i,n in enumerate(node.children):
             n.level = node.level+1
             boardc = deepcopy(board)
