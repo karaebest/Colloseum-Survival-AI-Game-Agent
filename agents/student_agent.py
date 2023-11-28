@@ -68,6 +68,8 @@ class StudentAgent(Agent):
         start_time = time.time()
         self.timer = start_time
         self.turn +=1
+        # if len(chess_board)<6:
+        #     self.depth=3
         # if self.turn<5:
         #     self.depth=1
         # else:
@@ -218,24 +220,24 @@ class StudentAgent(Agent):
             visited={tuple(pos)}
         #Check all boundaries in current position
         for dir in range(4):
-            #Check if possible to set barrier
+            #Check if possible to set barrier or move in that direction
             if board[pos[0]][pos[1]][dir]:
                 continue
-
+            
             #Create child node and add to list of visited positions
-            c = self.Node(pos)
-            c.level=node.level+1
-            c.boundary=dir
-            node.children.append(c)
+            if (not tuple(pos) in visited) or prev_dir==-1:
+                c = self.Node(pos)
+                c.level=node.level+1
+                c.boundary=dir
+                node.children.append(c)
                 
             #Ensure to not move back to previous position
-            if prev_dir==-1 or (prev_dir!= -1 and dir != self.opposites[prev_dir]):
+            if max_step!=0 and (prev_dir==-1 or dir!=self.opposites[prev_dir]):
                 #check if possible to move in that direction
                 next_pos = np.array(pos)+np.array(self.moves[dir])
-                if (not tuple(next_pos) in visited) and max_step!=0 and not np.array_equal(pos_adv, next_pos):
-                    visited.add(tuple(next_pos))
+                if next_pos[0]!=pos_adv[0] or next_pos[1]!=pos_adv[1]:
                     self.get_children(board, next_pos, pos_adv, max_step-1, dir, node, visited)
-            
+        visited.add(tuple(pos))    
         return node
     
     def minimax_decision(self, root, board, my_pos, pos_adv):
@@ -258,6 +260,7 @@ class StudentAgent(Agent):
                 alpha = val
                 max_node = c
             if time.time()-self.timer>1.9:
+                print("TIME")
                 self.chess_board[max_node.pos[0]][max_node.pos[1]][max_node.boundary]=True
                 self.chess_board[max_node.pos[0]+self.moves[max_node.boundary][0]][max_node.pos[1]+self.moves[max_node.boundary][1]][self.opposites[max_node.boundary]]=True
                 self.root = max_node
@@ -272,7 +275,7 @@ class StudentAgent(Agent):
         return max_node.pos, max_node.boundary
     
     def evaluation(self, node, board, pos, pos_adv):
-            # Get children first, to determine stuff like how many moves they can make
+        # Get children first, to determine stuff like how many moves they can make
         boardc = deepcopy(board)
         #Set boundaries in child state
         boardc[node.pos[0]][node.pos[1]][node.boundary]=True
@@ -280,12 +283,14 @@ class StudentAgent(Agent):
         
         # #Feature 1: Number of moves I can make from this position
         self.get_children(boardc, pos_adv, pos, self.max_step, -1, node)
+        if node.level%2!=0:
+            return -len(node.children)
         return len(node.children)
 
     
     def minimax_value(self, node, board, pos, pos_adv, alpha, beta):
         #check for end of game, if the move leads to a win, immediately return and make that move
-        if node.end is None and self.turn!=1 and not(self.board_size>10 and self.turn<20):
+        if node.end is None and not(self.board_size>6 and self.turn==1):
             end, score1, score2 = self.check_endgame(board, pos, pos_adv)
             if end:
                 node.end=True
@@ -298,9 +303,10 @@ class StudentAgent(Agent):
             #If move gives opponent an opening for a win in following turn, return immediately
             if node.level<3 and node.endscore<0:
                 return -(self.board_size*self.board_size), False
-            return node.endscore, False
+            return (self.board_size*self.board_size)/2+node.endscore, False
         
-
+        if time.time()-self.timer>1.9:
+            return 0, False
         #utility computed using evaluation function if depth reached
         if self.depth==node.level:
             return self.evaluation(node, board, pos, pos_adv), False

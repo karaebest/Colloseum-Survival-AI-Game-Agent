@@ -93,23 +93,28 @@ def check_endgame(board, p0_pos, p1_pos):
 def get_children(board, pos, pos_adv, max_step, prev_dir, node, visited={}): 
     if prev_dir==-1:
         visited = {tuple(pos)}
+    
     #Check all boundaries in current position except direction we came from
     for dir in range(4):
         #Check if possible to set barrier
         if board[pos[0]][pos[1]][dir]:
             continue
         #Create child node and add to list of visited positions
-        c = Node(pos)
-        c.level=node.level+1
-        c.boundary=dir
-        node.children.append(c)
+        if (not tuple(pos) in visited) or prev_dir==-1:
+            c = Node(pos)
+            c.level=node.level+1
+            c.boundary=dir
+            node.children.append(c)
         #Ensure to not move back to previous position
-        if prev_dir==-1 or (prev_dir!= -1 and dir != opposites[prev_dir]):
+        if max_step!=0 and (prev_dir==-1 or dir!=opposites[prev_dir]):
+            #check if possible to move in that direction
             next_pos = np.array(pos)+np.array(moves[dir])
+            print(prev_dir)
+            print("NEXTPOS: " + str(next_pos) + ' '+str(max_step))
             #Check if able to move to next position (still able to take step and adversary not in that position)
-            if (not tuple(next_pos) in visited) and max_step!=0 and not np.array_equal(pos_adv, next_pos):
-                visited.add(tuple(next_pos))
+            if pos_adv[0]!=next_pos[0] or next_pos[1]!=pos_adv[1]:
                 get_children(board, next_pos, pos_adv, max_step-1, dir, node, visited)
+    visited.add(tuple(pos))
     return node
 
 def minimax_decision(root, board, my_pos, pos_adv):
@@ -206,24 +211,22 @@ def minimax_value(node, board, pos, pos_adv):
         return np.min(vals), False
 
 ######################## MAKE BOARD###############
-p0_pos = [2,2]
-p1_pos = [1,0]
+p0_pos = [3,2]
+p1_pos = [0,3]
 player_names = ["p0","p1"]
 
 #bounds = [[0,1,1],[0,1,2],[0,2,2],[1,1,2],[1,2,2],[2,1,1],[2,1,2],[2,2,1]]
-bounds = [[1,0,2],[1,1,2],[1,2,2]]
-board = make_board(4, bounds)
+bounds = [[0,2,1],[1,2,1],[2,2,1],[2,2,2],[1,0,2],[3,3,1],[3,5,2]]
+board = make_board(6, bounds)
 
 root = Node(p0_pos)
 
 ########### GET CHILDREN TEST################
-# root = get_children(board, p0_pos, p1_pos, 2, -1, root)
+root = get_children(board, p1_pos, p0_pos, 3, -1, root)
 
-# for c in root.children:
-#     print("=====")
-#     print(c.pos)
-#     print(c.boundary)
-#     assert(c.level==1)
+for c in root.children:
+    print("=====" + str(c.pos)+ ' '+ str(c.boundary))
+    assert(c.level==1)
     
 ######### CHECK ENDGAME TEST############
 
@@ -237,9 +240,9 @@ root = Node(p0_pos)
 
 ######### MINIMAX TEST#############
 
-pos, boundary = minimax_decision(root, board, p0_pos, p1_pos)
-print(pos)
-print(boundary)
-turn = time.time()
-print(turn-t)
+# pos, boundary = minimax_decision(root, board, p0_pos, p1_pos)
+# print(pos)
+# print(boundary)
+# turn = time.time()
+# print(turn-t)
 
