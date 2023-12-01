@@ -100,7 +100,9 @@ class StudentAgent(Agent):
             
         self.chess_board = deepcopy(chess_board)
             
-        pos, b = self.minimax_decision(adv_pos)    
+        pos, b = self.minimax_decision(adv_pos) 
+        
+           
 
         # Some simple code to help you with timing. Consider checking 
         # time_taken during your search and breaking with the best answer
@@ -309,7 +311,17 @@ class StudentAgent(Agent):
         return max_node.pos, max_node.boundary
     
     def evaluation(self, node, board, pos, pos_adv):
-        
+        """Compute utility of node using evaluation function
+
+        Args:
+            node (Node): node
+            board (numpy.ndarray): board configuration for node
+            pos (list of int): current position
+            pos_adv (list of int): adversary's position
+
+        Returns:
+            int: utility of node = number of children
+        """
         # Get children first, to determine stuff like how many moves they can make
         boardc = self.get_copy_board(board, node.pos, node.boundary)
         
@@ -321,6 +333,19 @@ class StudentAgent(Agent):
 
     
     def minimax_value(self, node, board, pos, pos_adv, alpha, beta):
+        """Determines utility of node and implements alpha-beta pruning
+
+        Args:
+            node (Node): node
+            board (numpy.ndarray): board configuration of node
+            pos (list of int): current position
+            pos_adv (list of int): adversary's position
+            alpha (float): alpha value
+            beta (float): beta value
+
+        Returns:
+            int: utility of node
+        """
         #check for end of game, if the move leads to a win, immediately return and make that move
         if node.end is None and not(self.board_size>6 and self.turn==1):
             end, score1, score2 = self.check_endgame(board, pos, pos_adv)
@@ -349,7 +374,6 @@ class StudentAgent(Agent):
         #get children
         if len(node.children)==0:
             self.get_children(board, pos_adv, node.pos, self.max_step, -1, node)
-        print("LEVEL" + str(node.level+1))
         #get utility 
         m_ind = None
         for i,n in enumerate(node.children):
@@ -366,6 +390,7 @@ class StudentAgent(Agent):
                 # Place child that caused pruning at front of list.
                 if i!=0:
                     node.children.insert(0, node.children.pop(i))
+                print("PRUNED!")
                 break
         return alpha if node.level%2==0 else beta, False
         
