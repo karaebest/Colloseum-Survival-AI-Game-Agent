@@ -220,13 +220,13 @@ class StudentAgent(Agent):
         """Computes all children of given node
 
         Args:
-            board (numpy.ndarray): _description_
-            pos (list of int): _description_
-            pos_adv (list of int): _description_
-            max_step (int): _description_
-            prev_dir (int): _description_
-            node (Node): _description_
-            visited (dict, optional): _description_. Defaults to {}.
+            board (numpy.ndarray): board at state represented by node
+            pos (list of int): position of player whose moves are being generated
+            pos_adv (list of int): adversary's position
+            max_step (int): max number of steps left (= self.max_step on first call, deincremented for recursive calls)
+            prev_dir (int): previous direction moved in to get to pos (= -1 on first call)
+            node (Node): node whose children are being generated
+            visited (dict, optional): list of fully explored positions. Defaults to {}.
 
         """
         def sorting_heuristic(cnode):
@@ -357,6 +357,7 @@ class StudentAgent(Agent):
 
         Returns:
             int: utility of node
+            bool: True if immediate win (node level 1)
         """
         #check for end of game, if the move leads to a win, immediately return and make that move
         if node.end is None and not(self.board_size>6 and self.turn==1):
@@ -374,33 +375,37 @@ class StudentAgent(Agent):
                 return -(self.board_size*self.board_size), False
             return (self.board_size*self.board_size)/2+node.utility, False
         
+        #Time check. 
         if time.time()-self.timer>1.97:
             return 0, False
         
-        #utility computed using evaluation function if depth reached
+        #Utility computed using evaluation function if depth reached
         if self.depth==node.level:
             return self.evaluation(node, board, pos, pos_adv), False
-            # return 0, False
-            # return sum(bool(x) for x in board[pos[0]][pos[1]]), False
+            # return 0, False =============================================================================
+            # return sum(bool(x) for x in board[pos[0]][pos[1]]), False ==================================================
         
-        #get children
+        #Get children
         if len(node.children)==0:
             self.get_children(board, pos_adv, node.pos, self.max_step, -1, node)
-        #get utility 
+        #Get utility 
         m_ind = None
         for i,n in enumerate(node.children):
             n.level = node.level+1
             boardc = self.get_copy_board(board, n.pos, n.boundary)
+            #Get utility of each child
             val, win= self.minimax_value(n, boardc, n.pos, node.pos, alpha, beta)
             n.utility = val
+            #Update alpha or beta value depending on min/max node
             if node.level%2!=0:
                 beta = val if val<beta else beta
                 m_ind = i if val<beta else m_ind
             else:
                 alpha = val if val>alpha else alpha
                 m_ind = i if val>alpha else m_ind
+            # Prune node if alpha >= beta
             if alpha>= beta:
-                print("PRUNED!")
+                print("PRUNED!") #MAKE SURE TO REMOVE THIS ==========================================================
                 break
         return alpha if node.level%2==0 else beta, False
         
