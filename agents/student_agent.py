@@ -44,7 +44,8 @@ class StudentAgent(Agent):
             #Boundary placed to reach the state represented by this node
             self.pos = pos
             self.boundary = None
-            self.children = []
+            # self.children = {}
+            self.children=[]
             #Tree level of node (even = max node, odd = min node)
             self.level = 0
             self.end = None
@@ -65,8 +66,10 @@ class StudentAgent(Agent):
 
         Please check the sample implementation in agents/random_agent.py or agents/human_agent.py for more details.
         """
+        #To sort children 
         def sorting_heuristic(cnode):
             return cnode.utility
+        
         start_time = time.time()
         self.timer = start_time
         self.turn +=1
@@ -77,6 +80,7 @@ class StudentAgent(Agent):
             self.board_size = len(chess_board)
             self.max_step = max_step
         elif len(self.root.children)!=0:
+            t = time.time()
             bound = 0
             #check adv pos, find new boundary, 
             for i,b in enumerate(self.chess_board[adv_pos[0]][adv_pos[1]]):
@@ -95,6 +99,7 @@ class StudentAgent(Agent):
             #Sort root's children by utility:
             if len(self.root.children)!=0:
                 self.root.children.sort(key=sorting_heuristic)
+            print("=========== THIS TOOK: " + str(time.time()-t))
             # Sanity check: in case state not found in previously computed states, create new root node.
             if not flag:
                 self.root = self.Node(my_pos)
@@ -242,6 +247,7 @@ class StudentAgent(Agent):
             
             #Create child node and add to list of visited positions
             if (not tuple(pos) in visited) or prev_dir==-1:
+                
                 c = self.Node(pos)
                 c.level=node.level+1
                 c.boundary=dir
@@ -364,7 +370,11 @@ class StudentAgent(Agent):
             end, score1, score2 = self.check_endgame(board, pos, pos_adv)
             if end:
                 node.end=True
-                node.utility = score1-score2 if node.level%2!=0 else score2-score1
+                if node.level%2!=0:
+                    node.utility = score1 if score1-score2>0 else score1-score2
+                else:
+                    node.utility = score2 if score2-score1>0 else score2-score1
+                    
             else:
                 node.end = False
         if node.end:
@@ -388,6 +398,8 @@ class StudentAgent(Agent):
         #Get children
         if len(node.children)==0:
             self.get_children(board, pos_adv, node.pos, self.max_step, -1, node)
+        def sorting_h(node):
+            return node.utility
         #Get utility 
         m_ind = None
         for i,n in enumerate(node.children):
@@ -407,6 +419,7 @@ class StudentAgent(Agent):
             if alpha>= beta:
                 print("PRUNED!") #MAKE SURE TO REMOVE THIS ==========================================================
                 break
+        node.children.sort(key=sorting_h)
         return alpha if node.level%2==0 else beta, False
         
    
