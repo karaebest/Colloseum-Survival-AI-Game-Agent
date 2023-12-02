@@ -48,7 +48,7 @@ class StudentAgent(Agent):
             #Tree level of node (even = max node, odd = min node)
             self.level = 0
             self.end = None
-            self.endscore=0
+            self.utility=0
 
     def step(self, chess_board, my_pos, adv_pos, max_step):
         """
@@ -65,6 +65,8 @@ class StudentAgent(Agent):
 
         Please check the sample implementation in agents/random_agent.py or agents/human_agent.py for more details.
         """
+        def sorting_heuristic(cnode):
+            return cnode.utility
         start_time = time.time()
         self.timer = start_time
         self.turn +=1
@@ -90,6 +92,9 @@ class StudentAgent(Agent):
                     self.root.level=0
                     self.root.boundary=None
                     break
+            #Sort root's children by utility:
+            if len(self.root.children)!=0:
+                self.root.children.sort(key=sorting_heuristic)
             # Sanity check: in case state not found in previously computed states, create new root node.
             if not flag:
                 self.root = self.Node(my_pos)
@@ -209,7 +214,9 @@ class StudentAgent(Agent):
             return False, p0_score, p1_score
         return True, p0_score, p1_score
     
+    
     def get_children(self, board, pos, pos_adv, max_step, prev_dir, node, visited={}): 
+        
         """Computes all children of given node
 
         Args:
@@ -222,6 +229,9 @@ class StudentAgent(Agent):
             visited (dict, optional): _description_. Defaults to {}.
 
         """
+        def sorting_heuristic(cnode):
+            return -(abs(pos[0]-pos_adv[0])+abs(pos[1]-pos_adv[1]))
+        
         if prev_dir==-1:
             visited={tuple(pos)}
         #Check all boundaries in current position
@@ -243,7 +253,9 @@ class StudentAgent(Agent):
                 next_pos = np.array(pos)+np.array(self.moves[dir])
                 if next_pos[0]!=pos_adv[0] or next_pos[1]!=pos_adv[1]:
                     self.get_children(board, next_pos, pos_adv, max_step-1, dir, node, visited)
-        visited.add(tuple(pos))    
+        visited.add(tuple(pos))   
+        if prev_dir==-1:
+            node.children.sort(key=sorting_heuristic) 
         return node
     
     def get_copy_board(self, board, pos, boundary):
@@ -351,16 +363,16 @@ class StudentAgent(Agent):
             end, score1, score2 = self.check_endgame(board, pos, pos_adv)
             if end:
                 node.end=True
-                node.endscore = score1-score2 if node.level%2!=0 else score2-score1
+                node.utility = score1-score2 if node.level%2!=0 else score2-score1
             else:
                 node.end = False
         if node.end:
-            if node.level==1 and node.endscore>0: 
-                return node.endscore, True
+            if node.level==1 and node.utility>0: 
+                return node.utility, True
             #If move gives opponent an opening for a win in following turn, return immediately
-            if node.level<3 and node.endscore<0:
+            if node.level<3 and node.utility<0:
                 return -(self.board_size*self.board_size), False
-            return (self.board_size*self.board_size)/2+node.endscore, False
+            return (self.board_size*self.board_size)/2+node.utility, False
         
         if time.time()-self.timer>1.97:
             return 0, False
@@ -380,6 +392,7 @@ class StudentAgent(Agent):
             n.level = node.level+1
             boardc = self.get_copy_board(board, n.pos, n.boundary)
             val, win= self.minimax_value(n, boardc, n.pos, node.pos, alpha, beta)
+            n.utility = val
             if node.level%2!=0:
                 beta = val if val<beta else beta
                 m_ind = i if val<beta else m_ind
@@ -387,9 +400,6 @@ class StudentAgent(Agent):
                 alpha = val if val>alpha else alpha
                 m_ind = i if val>alpha else m_ind
             if alpha>= beta:
-                # Place child that caused pruning at front of list.
-                if i!=0:
-                    node.children.insert(0, node.children.pop(i))
                 print("PRUNED!")
                 break
         return alpha if node.level%2==0 else beta, False
