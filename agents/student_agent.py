@@ -50,6 +50,7 @@ class StudentAgent(Agent):
             self.level = 0
             self.end = None
             self.utility=0
+            self.remove = False
 
     def step(self, chess_board, my_pos, adv_pos, max_step):
         """
@@ -68,6 +69,7 @@ class StudentAgent(Agent):
         """            
         self.timer = time.time()
         self.turn +=1
+        print(str(self.depth) + " at turn: "+ str(self.turn-1))
         root_found = False
         #Create root node
         if self.root is None:
@@ -288,7 +290,12 @@ class StudentAgent(Agent):
             self.get_children(self.chess_board, self.root.pos, pos_adv, self.max_step, -1, self.root)
         max_node = None
         alpha = float('-inf')
+        r = 0
         for c in self.root.children:
+            #Do not consider nodes that have been flagged to be removed
+            if c.remove and r<len(self.root.children)-1:
+                r+=1
+                continue
             #Copy board
             boardc = self.get_copy_board(self.chess_board, c.pos, c.boundary)
             c.level=1
@@ -296,20 +303,31 @@ class StudentAgent(Agent):
             # If step results in an immediate win, return step
             if win:
                 return c.pos, c.boundary
+            if c.remove and r<len(self.root.children)-1:
+                r+=1
+                continue
             if val>alpha:
                 alpha = val
                 max_node = c
+            # Check time: return if time constraint will be exceeded
             if time.time()-self.timer>1.97:
-                print("TIMEEE")
-                self.update_board_root(max_node)
+                print("TIMEEE" + str(len(self.root.children)))
+                if self.depth>2:
+                    self.update_board_root(max_node)
                 return max_node.pos, max_node.boundary
-        #iterative deepening
-        if time.time()-self.timer<=self.depth*0.5:
+        #Iterative deepening
+        if time.time()-self.timer<=(0.5 if self.depth==1 else 0.4*self.depth) and time.time()-self.timer<1.5 and self.depth<20:
             self.depth+=1
             print("IN HERE  "+str(self.depth))
+            #Sort children based on previously calculated utility
+            def sorting_heuristic(n):
+                return n.utility
+            self.root.children.sort(key=sorting_heuristic, reverse=True)
             return self.minimax_decision(pos_adv)        
-        #Update root and board
-        self.update_board_root(max_node)
+        #Update root and board if it can be used in following turn
+        if self.depth>2:
+            self.update_board_root(max_node)
+        print(max_node.utility)
         return max_node.pos, max_node.boundary
     
     def evaluation(self, node, board, pos, pos_adv):
@@ -331,11 +349,16 @@ class StudentAgent(Agent):
         # Feature 2: Number of moves I can make from this state 
         boardc = self.get_copy_board(board, node.pos, node.boundary)
         self.get_children(boardc, pos_adv, pos, self.max_step, -1, node)
-        feat2 = len(node.children)
-        if node.level%2!=0:     
+        feat2 = len(node.children)/self.max_step 
+        if node.level%2!=0: 
             node.utility = 2*feat1-feat2
+            #Ensure adversary cannot box me in on their turn 
+            if node.level==1 and sum(bool(x) for x in boardc[node.pos[0]][node.pos[1]])>2 and feat1>self.board_size+self.max_step:
+                node.utility = -(self.board_size*self.board_size)    
+            
         else:
             node.utility = 2*feat1+feat2 
+        
         return node.utility
 
     
@@ -355,24 +378,29 @@ class StudentAgent(Agent):
             bool: True if immediate win (node level 1)
         """
         #check for end of game, if the move leads to a win, immediately return and make that move
-        if node.end is None and not(self.board_size>6 and self.turn==1):
+        if node.end is None and not(node.level==1 and self.turn==1 and self.board_size>6):
             end, score1, score2 = self.check_endgame(board, pos, pos_adv)
             if end:
                 node.end=True
                 if node.level%2!=0:
-                    node.utility = score1 if score1-score2>0 else -(self.board_size*self.board_size)
+                    node.utility = self.board_size*self.board_size if score1-score2>0 else -(self.board_size*self.board_size)
                 else:
-                    node.utility = score2 if score2-score1>0 else -(self.board_size*self.board_size)
+                    node.utility = self.board_size*self.board_size if score2-score1>0 else -(self.board_size*self.board_size)
                     
+                
             else:
                 node.end = False
         if node.end:
+            #Flag node so that it can be removed:
+            if node.utility<0 and node.level<3:
+                node.remove=True
+            #Return utility
             if node.level==1 and node.utility>0: 
                 return node.utility, True
             return node.utility, False
         
         #Time check. 
-        if time.time()-self.timer>1.968:
+        if time.time()-self.timer>1.95:
             return node.utility, False
         
         #Utility computed using evaluation function if depth reached
@@ -392,6 +420,10 @@ class StudentAgent(Agent):
             #Get utility of each child
             val, win= self.minimax_value(n, boardc, n.pos, node.pos, alpha, beta)
             n.utility = val
+            #Flag node to be removed if move gives opening to opponent for a win
+            if node.level==1 and n.remove:
+                node.remove = True
+                break
             #Update alpha or beta value depending on min/max node
             if node.level%2!=0:
                 beta = val if val<beta else beta
@@ -401,7 +433,8 @@ class StudentAgent(Agent):
                 m_ind = i if val>alpha else m_ind
             # Prune node if alpha >= beta
             if alpha>= beta:
-                # print("PRUNE===================")
+                #Killer heuristic
+                node.children.insert(0,node.children.pop(i))
                 break
         
         return alpha if node.level%2==0 else beta, False
