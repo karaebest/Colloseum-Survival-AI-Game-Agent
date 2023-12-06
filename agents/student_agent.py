@@ -33,7 +33,7 @@ class StudentAgent(Agent):
         
         
         self.chess_board = None
-        self.depth = 2
+        self.depth = 1
         self.max_step = 0
         self.root = None
         self.board_size = 0
@@ -65,22 +65,16 @@ class StudentAgent(Agent):
         you want to put on.
 
         Please check the sample implementation in agents/random_agent.py or agents/human_agent.py for more details.
-        """
-        #To sort children 
-        def sorting_heuristic(cnode):
-            return cnode.utility
-        
-        start_time = time.time()
-        self.timer = start_time
+        """            
+        self.timer = time.time()
         self.turn +=1
-        flag = False
+        root_found = False
         #Create root node
         if self.root is None:
             self.root = self.Node(my_pos)
             self.board_size = len(chess_board)
             self.max_step = max_step
-        elif len(self.root.children)!=0:
-            t = time.time()
+        elif len(self.root.children)!=0 and self.depth>2:
             bound = 0
             #check adv pos, find new boundary, 
             for i,b in enumerate(self.chess_board[adv_pos[0]][adv_pos[1]]):
@@ -90,38 +84,20 @@ class StudentAgent(Agent):
             # Update root node to the current position
             for c in self.root.children:
                 if np.array_equal(adv_pos, c.pos) and bound==c.boundary:
-                    flag = True
+                    root_found = True
                     self.root=c
                     self.root.pos=my_pos
                     self.root.level=0
                     self.root.boundary=None
                     break
-            #Sort root's children by utility:
-            if len(self.root.children)!=0:
-                self.root.children.sort(key=sorting_heuristic)
-            print("=========== THIS TOOK: " + str(time.time()-t))
             # Sanity check: in case state not found in previously computed states, create new root node.
-            if not flag:
+            if not root_found:
                 self.root = self.Node(my_pos)
         else:
             self.root = self.Node(my_pos)
-                    
-                    
-            
-        self.chess_board = deepcopy(chess_board)
-            
-        pos, b = self.minimax_decision(adv_pos) 
-        
-           
-
-        # Some simple code to help you with timing. Consider checking 
-        # time_taken during your search and breaking with the best answer
-        # so far when it nears 2 seconds.
-        
-        time_taken = time.time() - start_time
-        
-        print("My AI's turn took ", time_taken, "seconds.")
-
+        self.depth=1
+        self.chess_board = deepcopy(chess_board)  
+        pos, b = self.minimax_decision(adv_pos)       
         return pos, b
     
     def check_valid_step(self, board, start_pos, end_pos, adv_pos, barrier_dir):
@@ -234,9 +210,7 @@ class StudentAgent(Agent):
             visited (dict, optional): list of fully explored positions. Defaults to {}.
 
         """
-        def sorting_heuristic(cnode):
-            return -(abs(pos[0]-pos_adv[0])+abs(pos[1]-pos_adv[1]))
-        
+
         if prev_dir==-1:
             visited={tuple(pos)}
         #Check all boundaries in current position
@@ -259,10 +233,15 @@ class StudentAgent(Agent):
                 next_pos = np.array(pos)+np.array(self.moves[dir])
                 if next_pos[0]!=pos_adv[0] or next_pos[1]!=pos_adv[1]:
                     self.get_children(board, next_pos, pos_adv, max_step-1, dir, node, visited)
-        visited.add(tuple(pos))   
+        # Add node to list of visited nodes
+        visited.add(tuple(pos))
+           
         if prev_dir==-1:
+            # Before returning, order children by their proximity to the adversary
+            def sorting_heuristic(cnode):
+                return -(abs(cnode.pos[0]-pos_adv[0])+abs(cnode.pos[1]-pos_adv[1]))
             node.children.sort(key=sorting_heuristic) 
-        return node
+        return
     
     def get_copy_board(self, board, pos, boundary):
         """Creates copy of board with added given boundary
@@ -321,9 +300,14 @@ class StudentAgent(Agent):
                 alpha = val
                 max_node = c
             if time.time()-self.timer>1.97:
+                print("TIMEEE")
                 self.update_board_root(max_node)
                 return max_node.pos, max_node.boundary
-                
+        #iterative deepening
+        if time.time()-self.timer<=self.depth*0.5:
+            self.depth+=1
+            print("IN HERE  "+str(self.depth))
+            return self.minimax_decision(pos_adv)        
         #Update root and board
         self.update_board_root(max_node)
         return max_node.pos, max_node.boundary
@@ -338,16 +322,21 @@ class StudentAgent(Agent):
             pos_adv (list of int): adversary's position
 
         Returns:
-            int: utility of node = number of children
+            int: utility of node
         """
-        # Get children first, to determine stuff like how many moves they can make
+        # Feature 1: proximity to player
+        feat1 = self.board_size*2-abs(pos_adv[0]-node.pos[0] + pos_adv[1]-node.pos[1])
+        feat2 = 0
+        # if self.turn>15 or self.board_size<9:
+        # Feature 2: Number of moves I can make from this state 
         boardc = self.get_copy_board(board, node.pos, node.boundary)
-        
-        # #Feature 1: Number of moves I can make from this position
         self.get_children(boardc, pos_adv, pos, self.max_step, -1, node)
-        if node.level%2!=0:
-            return -len(node.children)
-        return len(node.children)
+        feat2 = len(node.children)
+        if node.level%2!=0:     
+            node.utility = 2*feat1-feat2
+        else:
+            node.utility = 2*feat1+feat2 
+        return node.utility
 
     
     def minimax_value(self, node, board, pos, pos_adv, alpha, beta):
@@ -371,35 +360,30 @@ class StudentAgent(Agent):
             if end:
                 node.end=True
                 if node.level%2!=0:
-                    node.utility = score1 if score1-score2>0 else score1-score2
+                    node.utility = score1 if score1-score2>0 else -(self.board_size*self.board_size)
                 else:
-                    node.utility = score2 if score2-score1>0 else score2-score1
+                    node.utility = score2 if score2-score1>0 else -(self.board_size*self.board_size)
                     
             else:
                 node.end = False
         if node.end:
             if node.level==1 and node.utility>0: 
                 return node.utility, True
-            #If move gives opponent an opening for a win in following turn, return immediately
-            if node.level<3 and node.utility<0:
-                return -(self.board_size*self.board_size), False
-            return (self.board_size*self.board_size)/2+node.utility, False
+            return node.utility, False
         
         #Time check. 
-        if time.time()-self.timer>1.97:
-            return 0, False
+        if time.time()-self.timer>1.968:
+            return node.utility, False
         
         #Utility computed using evaluation function if depth reached
         if self.depth==node.level:
-            return self.evaluation(node, board, pos, pos_adv), False
-            # return 0, False =============================================================================
-            # return sum(bool(x) for x in board[pos[0]][pos[1]]), False ==================================================
+            node.utility = self.evaluation(node, board, pos, pos_adv)
+            return node.utility, False
         
         #Get children
         if len(node.children)==0:
             self.get_children(board, pos_adv, node.pos, self.max_step, -1, node)
-        def sorting_h(node):
-            return node.utility
+        
         #Get utility 
         m_ind = None
         for i,n in enumerate(node.children):
@@ -417,9 +401,9 @@ class StudentAgent(Agent):
                 m_ind = i if val>alpha else m_ind
             # Prune node if alpha >= beta
             if alpha>= beta:
-                print("PRUNED!") #MAKE SURE TO REMOVE THIS ==========================================================
+                # print("PRUNE===================")
                 break
-        node.children.sort(key=sorting_h)
+        
         return alpha if node.level%2==0 else beta, False
         
    
