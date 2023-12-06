@@ -290,11 +290,14 @@ class StudentAgent(Agent):
             self.get_children(self.chess_board, self.root.pos, pos_adv, self.max_step, -1, self.root)
         max_node = None
         alpha = float('-inf')
-        r = 0
+        losses = 0
+        safety_node = None
         for c in self.root.children:
             #Do not consider nodes that have been flagged to be removed
-            if c.remove and r<len(self.root.children)-1:
-                r+=1
+            if c.remove and losses<len(self.root.children)-1:
+                if not c.end:
+                    safety_node = c
+                losses+=1
                 continue
             #Copy board
             boardc = self.get_copy_board(self.chess_board, c.pos, c.boundary)
@@ -303,8 +306,10 @@ class StudentAgent(Agent):
             # If step results in an immediate win, return step
             if win:
                 return c.pos, c.boundary
-            if c.remove and r<len(self.root.children)-1:
-                r+=1
+            if c.remove and losses<len(self.root.children)-1:
+                if not c.end:
+                    safety_node = c
+                losses+=1
                 continue
             if val>alpha:
                 alpha = val
@@ -315,6 +320,11 @@ class StudentAgent(Agent):
                 if self.depth>2:
                     self.update_board_root(max_node)
                 return max_node.pos, max_node.boundary
+        if losses==len(self.root.children):
+            if safety_node is not None:
+                return safety_node.pos, safety_node.boundary
+            else:
+                return self.root.children[0].pos, self.root.children[0].boundary
         #Iterative deepening
         if time.time()-self.timer<=(0.5 if self.depth==1 else 0.4*self.depth) and time.time()-self.timer<1.5 and self.depth<20:
             self.depth+=1
