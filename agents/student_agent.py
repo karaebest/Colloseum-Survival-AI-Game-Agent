@@ -53,23 +53,9 @@ class StudentAgent(Agent):
             self.remove = False
 
     def step(self, chess_board, my_pos, adv_pos, max_step):
-        """
-        Implement the step function of your agent here.
-        You can use the following variables to access the chess board:
-        - chess_board: a numpy array of shape (x_max, y_max, 4)
-        - my_pos: a tuple of (x, y)
-        - adv_pos: a tuple of (x, y)
-        - max_step: an integer
-
-        You should return a tuple of ((x, y), dir),
-        where (x, y) is the next position of your agent and dir is the direction of the wall
-        you want to put on.
-
-        Please check the sample implementation in agents/random_agent.py or agents/human_agent.py for more details.
-        """            
+            
         self.timer = time.time()
         self.turn +=1
-        print(str(self.depth) + " at turn: "+ str(self.turn-1))
         root_found = False
         #Create root node
         if self.root is None:
@@ -104,7 +90,7 @@ class StudentAgent(Agent):
     
     def check_valid_step(self, board, start_pos, end_pos, adv_pos, barrier_dir):
         """
-        Check if the step the agent takes is valid (reachable and within max steps).
+        Check if the step the agent takes is valid (reachable and within max steps). (COPIED FROM WORLD.PY)
 
         Parameters
         ----------
@@ -149,7 +135,7 @@ class StudentAgent(Agent):
     
     def check_endgame(self, board, p0_pos, p1_pos):
         """
-        Check if the game ends and compute the current score of the agents.
+        Check if the game ends and compute the current score of the agents. (COPIED FROM WORLD.PY)
 
         Returns
         -------
@@ -316,7 +302,6 @@ class StudentAgent(Agent):
                 max_node = c
             # Check time: return if time constraint will be exceeded
             if time.time()-self.timer>1.97:
-                print("TIMEEE" + str(len(self.root.children)))
                 if self.depth>2:
                     self.update_board_root(max_node)
                 return max_node.pos, max_node.boundary
@@ -328,7 +313,6 @@ class StudentAgent(Agent):
         #Iterative deepening
         if time.time()-self.timer<=(0.5 if self.depth==1 else 0.4*self.depth) and time.time()-self.timer<1.5 and self.depth<20:
             self.depth+=1
-            print("IN HERE  "+str(self.depth))
             #Sort children based on previously calculated utility
             def sorting_heuristic(n):
                 return n.utility
@@ -337,7 +321,6 @@ class StudentAgent(Agent):
         #Update root and board if it can be used in following turn
         if self.depth>2:
             self.update_board_root(max_node)
-        print(max_node.utility)
         return max_node.pos, max_node.boundary
     
     def evaluation(self, node, board, pos, pos_adv):
