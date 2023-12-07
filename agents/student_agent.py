@@ -301,7 +301,7 @@ class StudentAgent(Agent):
                 alpha = val
                 max_node = c
             # Check time: return if time constraint will be exceeded
-            if time.time()-self.timer>1.97:
+            if time.time()-self.timer>1.96:
                 if self.depth>2:
                     self.update_board_root(max_node)
                 return max_node.pos, max_node.boundary
@@ -310,8 +310,8 @@ class StudentAgent(Agent):
                 return safety_node.pos, safety_node.boundary
             else:
                 return self.root.children[0].pos, self.root.children[0].boundary
-        #Iterative deepening
-        if time.time()-self.timer<=(0.5 if self.depth==1 else 0.4*self.depth) and time.time()-self.timer<1.5 and self.depth<20:
+        #Iterative deepening 
+        if time.time()-self.timer<=0.4*self.depth and time.time()-self.timer<1.5 and self.depth<20:
             self.depth+=1
             #Sort children based on previously calculated utility
             def sorting_heuristic(n):
@@ -393,7 +393,7 @@ class StudentAgent(Agent):
             return node.utility, False
         
         #Time check. 
-        if time.time()-self.timer>1.95:
+        if time.time()-self.timer>1.97:
             return node.utility, False
         
         #Utility computed using evaluation function if depth reached
@@ -411,7 +411,7 @@ class StudentAgent(Agent):
             n.level = node.level+1
             boardc = self.get_copy_board(board, n.pos, n.boundary)
             #Get utility of each child
-            val, win= self.minimax_value(n, boardc, n.pos, node.pos, alpha, beta)
+            val, win= self.minimax_value(n, boardc, n.pos, node.pos, alpha, beta)            
             n.utility = val
             #Flag node to be removed if move gives opening to opponent for a win
             if node.level==1 and n.remove:
