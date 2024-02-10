@@ -7,7 +7,7 @@ from time import sleep, time
 import click
 import logging
 from store import AGENT_REGISTRY
-from constants import *
+from code.constants import *
 import sys
 
 logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.INFO)

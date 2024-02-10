@@ -1,6 +1,6 @@
 ## UI Placeholder
 import matplotlib.pyplot as plt
-from constants import *
+from code.constants import *
 from pathlib import Path
 
 
